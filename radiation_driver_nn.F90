@@ -19,9 +19,9 @@ implicit none
 private
 
 public  radiation_driver_nn_init, &
+        test
 !        nn_radiation_calc, &
 !        produce_rad_diag_nn,&
-        test
 
 
                          contains
@@ -46,4 +46,4 @@ end subroutine test
 
 !#######################################################################
 
-                 end module radiation_driver_nn_mod
+end module radiation_driver_nn_mod

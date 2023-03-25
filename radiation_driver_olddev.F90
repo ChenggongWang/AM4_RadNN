@@ -1532,9 +1532,9 @@ type(radiation_flux_type),   intent(inout) :: Rad_flux(:)
 !         initialize NN module 
 !         register variale to diagnose the results from NN
 !---------------------------------------------------------------------
-    !if (do_rad_nn) then
-    !    call radiation_driver_nn_init()
-    !end if
+    if (do_rad_nn) then
+        call radiation_driver_nn_init()
+    end if
     if (do_rad_nn) then
         outunit = stdout()
         ! read para file  
@@ -2264,7 +2264,7 @@ integer :: irepeat
 
 !   cgw: call NN_radiation_calc 
     if (do_rad_NN .and. do_rad) then
-        !call test()
+        call test()
         allocate(nn_tdt_sw_clr   (size(atmos_input%press, 1), &
                                   size(atmos_input%press, 2), &
                                   size(atmos_input%press, 3)))
