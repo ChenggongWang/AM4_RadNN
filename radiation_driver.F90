@@ -2094,52 +2094,52 @@ integer, dimension(3)   :: size3d
 !----------------------------------------------------------------------
 !   cgw: call NN_radiation_calc 
 !----------------------------------------------------------------------
-    if (do_rad_NN .and. do_rad) then
-        size3D(1) = size(atmos_input%temp, 1)
-        size3D(2) = size(atmos_input%temp, 2)
-        size3D(3) = size(atmos_input%temp, 3)
-        allocate(nn_tdt_sw_clr   ( size3D(1), size3D(2), size3D(3) ) )
-        allocate(nn_tdt_lw_clr   ( size3D(1), size3D(2), size3D(3) ) )
-        allocate(nn_tdt_sw       ( size3D(1), size3D(2), size3D(3) ) )
-        allocate(nn_tdt_lw       ( size3D(1), size3D(2), size3D(3) ) )
-        allocate(nn_lwdn_sfc     ( size3D(1), size3D(2) ) )
-        allocate(nn_lwup_sfc     ( size3D(1), size3D(2) ) )
-        allocate(nn_swdn_sfc     ( size3D(1), size3D(2) ) )
-        allocate(nn_swup_sfc     ( size3D(1), size3D(2) ) )
-        allocate(nn_swdn_toa     ( size3D(1), size3D(2) ) )
-        allocate(nn_swup_toa     ( size3D(1), size3D(2) ) )
-        allocate(nn_olr          ( size3D(1), size3D(2) ) )
-        allocate(nn_lwdn_sfc_clr ( size3D(1), size3D(2) ) )
-        allocate(nn_swdn_sfc_clr ( size3D(1), size3D(2) ) )
-        allocate(nn_swup_sfc_clr ( size3D(1), size3D(2) ) )
-        allocate(nn_swup_toa_clr ( size3D(1), size3D(2) ) )
-        allocate(nn_olr_clr      ( size3D(1), size3D(2) ) )
-        call mpp_clock_begin (nn_calc_clock)
-        call get_solar_constant(solar_constant_used)
-        call NN_radiation_calc (atmos_input%phalf, atmos_input%temp, atmos_input%tflux, atmos_input%tsfc, &
-                                atmos_input%rh2o, rad_gases, Astro, solar_constant_used, &
-                                surface%asfc_vis_dir, surface%asfc_vis_dif, surface%asfc_nir_dir, surface%asfc_nir_dif, &
-                                moist_clouds_block, &
-                                nn_tdt_sw, nn_tdt_lw, &
-                                nn_lwdn_sfc, nn_lwup_sfc, nn_swdn_sfc, nn_swup_sfc, &
-                                nn_swdn_toa, nn_swup_toa, nn_olr, & 
-                                nn_tdt_sw_clr, nn_tdt_lw_clr, &
-                                nn_lwdn_sfc_clr, nn_swdn_sfc_clr, nn_swup_sfc_clr, &
-                                nn_swup_toa_clr, nn_olr_clr ) 
-        call mpp_clock_end (nn_calc_clock)
-
-        call produce_rad_nn_diag(time_next, is, js, &
-                                atmos_input%phalf, atmos_input%temp, atmos_input%tflux, atmos_input%tsfc, &
-                                atmos_input%rh2o, rad_gases, Astro, solar_constant_used, &
-                                surface%asfc_vis_dir, surface%asfc_vis_dif, surface%asfc_nir_dir, surface%asfc_nir_dif, &
-                                moist_clouds_block, &
-                                nn_tdt_sw, nn_tdt_lw, &
-                                nn_lwdn_sfc, nn_lwup_sfc, nn_swdn_sfc, nn_swup_sfc, &
-                                nn_swdn_toa, nn_swup_toa, nn_olr, & 
-                                nn_tdt_sw_clr, nn_tdt_lw_clr, &
-                                nn_lwdn_sfc_clr, nn_swdn_sfc_clr, nn_swup_sfc_clr, &
-                                nn_swup_toa_clr, nn_olr_clr )
-
+    if (do_rad) then
+        if (do_rad_NN) then
+            size3D(1) = size(atmos_input%temp, 1)
+            size3D(2) = size(atmos_input%temp, 2)
+            size3D(3) = size(atmos_input%temp, 3)
+            allocate(nn_tdt_sw_clr   ( size3D(1), size3D(2), size3D(3) ) )
+            allocate(nn_tdt_lw_clr   ( size3D(1), size3D(2), size3D(3) ) )
+            allocate(nn_tdt_sw       ( size3D(1), size3D(2), size3D(3) ) )
+            allocate(nn_tdt_lw       ( size3D(1), size3D(2), size3D(3) ) )
+            allocate(nn_lwdn_sfc     ( size3D(1), size3D(2) ) )
+            allocate(nn_lwup_sfc     ( size3D(1), size3D(2) ) )
+            allocate(nn_swdn_sfc     ( size3D(1), size3D(2) ) )
+            allocate(nn_swup_sfc     ( size3D(1), size3D(2) ) )
+            allocate(nn_swdn_toa     ( size3D(1), size3D(2) ) )
+            allocate(nn_swup_toa     ( size3D(1), size3D(2) ) )
+            allocate(nn_olr          ( size3D(1), size3D(2) ) )
+            allocate(nn_lwdn_sfc_clr ( size3D(1), size3D(2) ) )
+            allocate(nn_swdn_sfc_clr ( size3D(1), size3D(2) ) )
+            allocate(nn_swup_sfc_clr ( size3D(1), size3D(2) ) )
+            allocate(nn_swup_toa_clr ( size3D(1), size3D(2) ) )
+            allocate(nn_olr_clr      ( size3D(1), size3D(2) ) )
+            call mpp_clock_begin (nn_calc_clock)
+            call get_solar_constant(solar_constant_used)
+            call NN_radiation_calc (atmos_input%phalf, atmos_input%temp, atmos_input%tflux, atmos_input%tsfc, &
+                                    atmos_input%rh2o, rad_gases, Astro, solar_constant_used, &
+                                    surface%asfc_vis_dir, surface%asfc_vis_dif, surface%asfc_nir_dir, surface%asfc_nir_dif, &
+                                    moist_clouds_block, &
+                                    nn_tdt_sw, nn_tdt_lw, &
+                                    nn_lwdn_sfc, nn_lwup_sfc, nn_swdn_sfc, nn_swup_sfc, &
+                                    nn_swdn_toa, nn_swup_toa, nn_olr, & 
+                                    nn_tdt_sw_clr, nn_tdt_lw_clr, &
+                                    nn_lwdn_sfc_clr, nn_swdn_sfc_clr, nn_swup_sfc_clr, &
+                                    nn_swup_toa_clr, nn_olr_clr ) 
+            call mpp_clock_end (nn_calc_clock)
+        end if ! do_rad_nn
+        call produce_rad_nn_diag(do_rad_nn, time_next, is, js, &
+                                 atmos_input%phalf, atmos_input%temp, atmos_input%tflux, atmos_input%tsfc, &
+                                 atmos_input%rh2o, rad_gases, Astro, solar_constant_used, &
+                                 surface%asfc_vis_dir, surface%asfc_vis_dif, surface%asfc_nir_dir, surface%asfc_nir_dif, &
+                                 moist_clouds_block, &
+                                 nn_tdt_sw, nn_tdt_lw, &
+                                 nn_lwdn_sfc, nn_lwup_sfc, nn_swdn_sfc, nn_swup_sfc, &
+                                 nn_swdn_toa, nn_swup_toa, nn_olr, & 
+                                 nn_tdt_sw_clr, nn_tdt_lw_clr, &
+                                 nn_lwdn_sfc_clr, nn_swdn_sfc_clr, nn_swup_sfc_clr, &
+                                 nn_swup_toa_clr, nn_olr_clr )
         ! deallocate NN resluts
         if (allocated(nn_tdt_sw      )) deallocate(nn_tdt_sw      )
         if (allocated(nn_tdt_lw      )) deallocate(nn_tdt_lw      )
@@ -2157,7 +2157,9 @@ integer, dimension(3)   :: size3d
         if (allocated(nn_swup_sfc_clr)) deallocate(nn_swup_sfc_clr)
         if (allocated(nn_swup_toa_clr)) deallocate(nn_swup_toa_clr)
         if (allocated(nn_olr_clr     )) deallocate(nn_olr_clr     )
-    end if ! do_rad_nn
+
+    end if ! do_rad
+
 
 !-------------------------------------------------------------------
 !    on all timesteps, call update_rad_fields to update the temperature 

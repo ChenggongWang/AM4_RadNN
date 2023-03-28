@@ -169,9 +169,9 @@ subroutine radiation_driver_nn_init(do_rad_nn, axes, time, rad_nn_para_nc)
                                  "layer temperature", "K")
     idzlay = register_diag_field(mod_name, "layer_thickness", a(1:3), time, &
                                  "layer_thickness", "m")
-    idh2o = register_diag_field(mod_name, "water_vapor", a(1:3), time, &
-                                "water_vapor", "kg water / kg dry")
-    ido3 = register_diag_field(mod_name, "ozone", a(1:3), time, &
+    idh2o = register_diag_field(mod_name, "sphum", a(1:3), time, &
+                                "water_vapor", "kg/kg")
+    ido3 = register_diag_field(mod_name, "o3", a(1:3), time, &
                              "ozone", "mol mol-1")
     idsd = register_diag_field(mod_name, "stratiform_droplet_number", a(1:3), time, &
                                "stratiform_droplet_number", "")
@@ -207,15 +207,13 @@ subroutine radiation_driver_nn_init(do_rad_nn, axes, time, rad_nn_para_nc)
     idfrac = register_diag_field(mod_name, "dayf", a(1:2), time, &
                                "daylight fraction", "none")
     !1D 
-    idsolar = register_diag_field(mod_name, "solar_constant", time, &
-                                  "solar constant", "none")
+    idsolar = register_diag_field(mod_name, "solar_constant", time, "solar constant", "none")
     ! earth_sun_distance_fraction
-    ider = register_diag_field(mod_name, "rrsun", time, &
-                               "rrsun factor", "none")
+    ider = register_diag_field(mod_name, "rrsun", time,  "rrsun factor", "none")
 
 end subroutine radiation_driver_nn_init
 
-subroutine produce_rad_nn_diag(time_next, is, js, &
+subroutine produce_rad_nn_diag(do_rad_nn, time_next, is, js, &
                                phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro, solar_constant_used, &
                                asfc_vis_dir, asfc_vis_dif, asfc_nir_dir, asfc_nir_dif, &
                                moist_clouds_block, &
@@ -226,22 +224,23 @@ subroutine produce_rad_nn_diag(time_next, is, js, &
                                lwdn_sfc_clr, swdn_sfc_clr, swup_sfc_clr, &
                                swup_toa_clr, olr_clr  )
     !--------------------------------------------------------------------
-    type(time_type),              intent(in)        :: time_next
-    integer,                      intent(in)        :: is, js
-    real, dimension(:,:,:),       intent(in)        :: phalf, temp, &
+    logical,                            intent(in)  :: do_rad_nn
+    type(time_type),                    intent(in)  :: time_next
+    integer,                            intent(in)  :: is, js
+    real, dimension(:,:,:),             intent(in)  :: phalf, temp, &
                                                        tflux, rh2o
-    real, dimension(:,:),         intent(in)        :: tsfc
-    type(radiative_gases_type),   intent(in)        :: Rad_gases
-    type(astronomy_type),         intent(in)        :: Astro
-    real,                         intent(in)        :: solar_constant_used
-    real, dimension(:,:),         intent(in)        :: asfc_vis_dir, &
+    real, dimension(:,:),               intent(in)  :: tsfc
+    type(radiative_gases_type),         intent(in)  :: Rad_gases
+    type(astronomy_type),               intent(in)  :: Astro
+    real,                               intent(in)  :: solar_constant_used
+    real, dimension(:,:),               intent(in)  :: asfc_vis_dir, &
                                                        asfc_nir_dir, &
                                                        asfc_vis_dif, &
                                                        asfc_nir_dif
     type(clouds_from_moist_block_type), intent(in)  :: Moist_clouds_block
     ! swdn_toa is input
-    real, dimension(:,:,:),       intent(inout)     :: tdt_sw, tdt_lw, tdt_sw_clr, tdt_lw_clr
-    real, dimension(:,:),         intent(inout)     :: lwdn_sfc, lwup_sfc, swdn_sfc, swup_sfc,  &
+    real, dimension(:,:,:),          intent(inout)  :: tdt_sw, tdt_lw, tdt_sw_clr, tdt_lw_clr
+    real, dimension(:,:),            intent(inout)  :: lwdn_sfc, lwup_sfc, swdn_sfc, swup_sfc,  &
                                                        swdn_toa, swup_toa, olr, & 
                                                        lwdn_sfc_clr, swdn_sfc_clr, swup_sfc_clr, &
                                                        swup_toa_clr, olr_clr
@@ -250,27 +249,29 @@ subroutine produce_rad_nn_diag(time_next, is, js, &
     integer :: n
     logical :: flag            
 
-    ! send_data to diag files: output of NN
-    !3D heating rate
-    if (id_nn_tdt_lw     .gt. 0) flag = send_data(id_nn_tdt_lw    , tdt_lw    , time_next, is, js, 1)
-    if (id_nn_tdt_sw     .gt. 0) flag = send_data(id_nn_tdt_sw    , tdt_sw    , time_next, is, js, 1)
-    if (id_nn_tdt_lw_clr .gt. 0) flag = send_data(id_nn_tdt_lw_clr, tdt_lw_clr, time_next, is, js, 1)
-    if (id_nn_tdt_sw_clr .gt. 0) flag = send_data(id_nn_tdt_sw_clr, tdt_sw_clr, time_next, is, js, 1)
-    
-    !2D boundary flux
-    if (id_nn_lwdn_sfc .gt. 0) flag = send_data(id_nn_lwdn_sfc, lwdn_sfc, time_next, is, js)
-    if (id_nn_lwup_sfc .gt. 0) flag = send_data(id_nn_lwup_sfc, lwup_sfc, time_next, is, js)
-    if (id_nn_swdn_sfc .gt. 0) flag = send_data(id_nn_swdn_sfc, swdn_sfc, time_next, is, js)
-    if (id_nn_swup_sfc .gt. 0) flag = send_data(id_nn_swup_sfc, swup_sfc, time_next, is, js)
-    if (id_nn_swdn_toa .gt. 0) flag = send_data(id_nn_swdn_toa, swdn_toa, time_next, is, js)
-    if (id_nn_swup_toa .gt. 0) flag = send_data(id_nn_swup_toa, swup_toa, time_next, is, js)
-    if (id_nn_olr      .gt. 0) flag = send_data(id_nn_olr     , olr     , time_next, is, js)
-    
-    if (id_nn_olr_clr      .gt. 0) flag = send_data(id_nn_olr_clr     , olr_clr     , time_next, is, js)
-    if (id_nn_lwdn_sfc_clr .gt. 0) flag = send_data(id_nn_lwdn_sfc_clr, lwdn_sfc_clr, time_next, is, js)
-    if (id_nn_swdn_sfc_clr .gt. 0) flag = send_data(id_nn_swdn_sfc_clr, swdn_sfc_clr, time_next, is, js)
-    if (id_nn_swup_sfc_clr .gt. 0) flag = send_data(id_nn_swup_sfc_clr, swup_sfc_clr, time_next, is, js)
-    if (id_nn_swup_toa_clr .gt. 0) flag = send_data(id_nn_swup_toa_clr, swup_toa_clr, time_next, is, js)
+    if (do_rad_nn) then
+        ! send_data to diag files: output of NN
+        !3D heating rate
+        if (id_nn_tdt_lw     .gt. 0) flag = send_data(id_nn_tdt_lw    , tdt_lw    , time_next, is, js, 1)
+        if (id_nn_tdt_sw     .gt. 0) flag = send_data(id_nn_tdt_sw    , tdt_sw    , time_next, is, js, 1)
+        if (id_nn_tdt_lw_clr .gt. 0) flag = send_data(id_nn_tdt_lw_clr, tdt_lw_clr, time_next, is, js, 1)
+        if (id_nn_tdt_sw_clr .gt. 0) flag = send_data(id_nn_tdt_sw_clr, tdt_sw_clr, time_next, is, js, 1)
+        
+        !2D boundary flux
+        if (id_nn_lwdn_sfc .gt. 0) flag = send_data(id_nn_lwdn_sfc, lwdn_sfc, time_next, is, js)
+        if (id_nn_lwup_sfc .gt. 0) flag = send_data(id_nn_lwup_sfc, lwup_sfc, time_next, is, js)
+        if (id_nn_swdn_sfc .gt. 0) flag = send_data(id_nn_swdn_sfc, swdn_sfc, time_next, is, js)
+        if (id_nn_swup_sfc .gt. 0) flag = send_data(id_nn_swup_sfc, swup_sfc, time_next, is, js)
+        if (id_nn_swdn_toa .gt. 0) flag = send_data(id_nn_swdn_toa, swdn_toa, time_next, is, js)
+        if (id_nn_swup_toa .gt. 0) flag = send_data(id_nn_swup_toa, swup_toa, time_next, is, js)
+        if (id_nn_olr      .gt. 0) flag = send_data(id_nn_olr     , olr     , time_next, is, js)
+        
+        if (id_nn_olr_clr      .gt. 0) flag = send_data(id_nn_olr_clr     , olr_clr     , time_next, is, js)
+        if (id_nn_lwdn_sfc_clr .gt. 0) flag = send_data(id_nn_lwdn_sfc_clr, lwdn_sfc_clr, time_next, is, js)
+        if (id_nn_swdn_sfc_clr .gt. 0) flag = send_data(id_nn_swdn_sfc_clr, swdn_sfc_clr, time_next, is, js)
+        if (id_nn_swup_sfc_clr .gt. 0) flag = send_data(id_nn_swup_sfc_clr, swup_sfc_clr, time_next, is, js)
+        if (id_nn_swup_toa_clr .gt. 0) flag = send_data(id_nn_swup_toa_clr, swup_toa_clr, time_next, is, js)
+    end if
 
     ! send_data to diag files: input for NN
     !3D atmosphere fields.
