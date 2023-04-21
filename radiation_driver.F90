@@ -348,6 +348,7 @@ logical :: nonzero_rad_flux_init = .false.
 
 logical :: do_radiation = .true.
 logical :: do_rad_nn = .true.
+logical :: do_rad_nn_eff = .true.
 logical :: nn_diag_flag = .false.
 logical :: nn_diag_speed = .false.
 character(len=100) :: rad_nn_para_nc = 'RadNN_AM4_para_default'
@@ -479,6 +480,7 @@ namelist /radiation_driver_nml/ do_radiation, &
                                 nonzero_rad_flux_init, &
                                 do_conserve_energy, & 
                                 do_rad_nn, &
+                                do_rad_nn_eff, &
                                 nn_diag_flag, &
                                 nn_diag_speed, &
                                 rad_nn_para_nc
@@ -2095,7 +2097,7 @@ integer, dimension(3)   :: size3d
 !   cgw: call NN_radiation_calc 
 !----------------------------------------------------------------------
     if (do_rad) then
-        if (do_rad_NN) then
+        if (do_rad_nn) then
             size3D(1) = size(atmos_input%temp, 1)
             size3D(2) = size(atmos_input%temp, 2)
             size3D(3) = size(atmos_input%temp, 3)
@@ -2129,7 +2131,8 @@ integer, dimension(3)   :: size3d
                                     nn_swup_toa_clr, nn_olr_clr ) 
             call mpp_clock_end (nn_calc_clock)
         end if ! do_rad_nn
-        call produce_rad_nn_diag(do_rad_nn, time_next, is, js, &
+        ! only send diag data on radiation step to avoid time mismatch
+        call produce_rad_nn_diag(do_rad_nn, time, is, js, &
                                  atmos_input%phalf, atmos_input%temp, atmos_input%tflux, atmos_input%tsfc, &
                                  atmos_input%rh2o, rad_gases, Astro, solar_constant_used, &
                                  surface%asfc_vis_dir, surface%asfc_vis_dif, surface%asfc_nir_dir, surface%asfc_nir_dif, &
@@ -2140,23 +2143,6 @@ integer, dimension(3)   :: size3d
                                  nn_tdt_sw_clr, nn_tdt_lw_clr, &
                                  nn_lwdn_sfc_clr, nn_swdn_sfc_clr, nn_swup_sfc_clr, &
                                  nn_swup_toa_clr, nn_olr_clr )
-        ! deallocate NN resluts
-        if (allocated(nn_tdt_sw      )) deallocate(nn_tdt_sw      )
-        if (allocated(nn_tdt_lw      )) deallocate(nn_tdt_lw      )
-        if (allocated(nn_tdt_sw_clr  )) deallocate(nn_tdt_sw_clr  )
-        if (allocated(nn_tdt_lw_clr  )) deallocate(nn_tdt_lw_clr  )
-        if (allocated(nn_lwdn_sfc    )) deallocate(nn_lwdn_sfc    )
-        if (allocated(nn_lwup_sfc    )) deallocate(nn_lwup_sfc    )
-        if (allocated(nn_swdn_sfc    )) deallocate(nn_swdn_sfc    )
-        if (allocated(nn_swup_sfc    )) deallocate(nn_swup_sfc    )
-        if (allocated(nn_swdn_toa    )) deallocate(nn_swdn_toa    )
-        if (allocated(nn_swup_toa    )) deallocate(nn_swup_toa    )
-        if (allocated(nn_olr         )) deallocate(nn_olr         )
-        if (allocated(nn_lwdn_sfc_clr)) deallocate(nn_lwdn_sfc_clr)
-        if (allocated(nn_swdn_sfc_clr)) deallocate(nn_swdn_sfc_clr)
-        if (allocated(nn_swup_sfc_clr)) deallocate(nn_swup_sfc_clr)
-        if (allocated(nn_swup_toa_clr)) deallocate(nn_swup_toa_clr)
-        if (allocated(nn_olr_clr     )) deallocate(nn_olr_clr     )
 
     end if ! do_rad
 
@@ -2334,7 +2320,36 @@ integer, dimension(3)   :: size3d
       Rad_flux_block%flux_lw = Rad_output%flux_lw_surf(is:ie,js:je)
       Rad_flux_block%coszen  = Rad_output%coszen_angle(is:ie,js:je)
       if (do_rad) Rad_flux_block%extinction = Rad_output%extinction(is:ie,js:je,:)
+!---------------------------------------------------------------------
+!  cgw: 
+!  replace standard solver results with NN predictions
+!  stage 0: only tdt and sw lw net flux. 
+!           vis, dir, dif is kept as standard solver value
+!           they can be included into NN later 
+!---------------------------------------------------------------------
+    if (do_rad_nn_eff) then
+        Rad_flux_block%tdt_rad = nn_tdt_sw + nn_tdt_lw
+        Rad_flux_block%flux_sw = nn_swdn_sfc - nn_swup_sfc
+        Rad_flux_block%flux_lw = nn_lwdn_sfc 
+    end if ! do_rad_nn_eff
 
+    ! deallocate NN resluts
+    if (allocated(nn_tdt_sw      )) deallocate(nn_tdt_sw      )
+    if (allocated(nn_tdt_lw      )) deallocate(nn_tdt_lw      )
+    if (allocated(nn_tdt_sw_clr  )) deallocate(nn_tdt_sw_clr  )
+    if (allocated(nn_tdt_lw_clr  )) deallocate(nn_tdt_lw_clr  )
+    if (allocated(nn_lwdn_sfc    )) deallocate(nn_lwdn_sfc    )
+    if (allocated(nn_lwup_sfc    )) deallocate(nn_lwup_sfc    )
+    if (allocated(nn_swdn_sfc    )) deallocate(nn_swdn_sfc    )
+    if (allocated(nn_swup_sfc    )) deallocate(nn_swup_sfc    )
+    if (allocated(nn_swdn_toa    )) deallocate(nn_swdn_toa    )
+    if (allocated(nn_swup_toa    )) deallocate(nn_swup_toa    )
+    if (allocated(nn_olr         )) deallocate(nn_olr         )
+    if (allocated(nn_lwdn_sfc_clr)) deallocate(nn_lwdn_sfc_clr)
+    if (allocated(nn_swdn_sfc_clr)) deallocate(nn_swdn_sfc_clr)
+    if (allocated(nn_swup_sfc_clr)) deallocate(nn_swup_sfc_clr)
+    if (allocated(nn_swup_toa_clr)) deallocate(nn_swup_toa_clr)
+    if (allocated(nn_olr_clr     )) deallocate(nn_olr_clr     )
 !---------------------------------------------------------------------
 !    call routines to deallocate the components of the derived type 
 !    arrays input to radiation_driver.
