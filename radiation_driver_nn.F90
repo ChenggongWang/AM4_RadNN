@@ -351,7 +351,7 @@ subroutine nn_pred_1d_sgemm(FNN,x,y)
         interm2 = FNN%Layers(ilayer)%bias
         !call SGEMM('N','N',m,n,k,1.0,interm1,m,FNN%Layers(ilayer)%weight,k,1.0,interm2,m)
         call SGEMV('T',k,n,alpha,FNN%Layers(ilayer)%weight,k,interm1,1,beta,interm2,1)
-        interm2 = NN_activ(interm2)
+        if (ilayer .ne. FNN%num_layers) interm2 = NN_activ(interm2)
         deallocate(interm1)
         allocate(interm1(n))
         interm1 = interm2
@@ -374,7 +374,7 @@ subroutine nn_pred_1d_matmul(FNN,x,y)
         n = size(FNN%Layers(ilayer)%bias)
         allocate(interm2(n))
         interm2 = matmul(interm1,FNN%Layers(ilayer)%weight) + FNN%Layers(ilayer)%bias
-        interm2 = NN_activ(interm2)
+        if (ilayer .ne. FNN%num_layers) interm2 = NN_activ(interm2)
         deallocate(interm1)
         allocate(interm1(n))
         interm1 = interm2
@@ -435,7 +435,7 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
     do j = 1, jsize
         do i = 1, isize
             input_X(1) = phalf(i,j,ksize+1)   ! ps
-            input_X(2:1+ksize) = temp(i,j,:) ! need to update to temp, since tflux is from tsfc
+            input_X(2:1+ksize) = temp(i,j,:) 
             input_X(2+ksize)   = tsfc(i,j)
             input_X(3+ksize:2+2*ksize) = rh2o(i,j,:)
             input_X(3+2*ksize:2+3*ksize) = Rad_gases%qo3(i,j,:)
@@ -454,7 +454,7 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
     do j = 1, jsize
         do i = 1, isize
             input_X(1) = phalf(i,j,ksize+1)   ! ps
-            input_X(2:1+ksize) = temp(i,j,:) ! need to update to temp, since tflux is from tsfc
+            input_X(2:1+ksize) = temp(i,j,:) 
             input_X(2+ksize) = tsfc(i,j)
             input_X(3+ksize:2+2*ksize) = rh2o(i,j,:)
             input_X(3+ 2*ksize:2+ 3*ksize) = Rad_gases%qo3(i,j,:)
@@ -483,7 +483,7 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
         do i = 1, isize
             input_X(1) = phalf(i,j,ksize+1)   ! ps
             if (swdn_toa(i,j) > 1e-3) then !daylight
-                input_X(2:1+ksize) = temp(i,j,:) ! need to update to temp, since tflux is from tsfc
+                input_X(2:1+ksize) = temp(i,j,:) 
                 input_X(2+ksize) = tsfc(i,j)
                 input_X(3+ksize:2+2*ksize) = rh2o(i,j,:)
                 input_X(3+2*ksize:2+3*ksize) = Rad_gases%qo3(i,j,:)
@@ -515,7 +515,7 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
         do i = 1, isize
             input_X(1) = phalf(i,j,ksize+1)   ! ps
             if (swdn_toa(i,j) > 1e-3) then !daylight
-                input_X(2:1+ksize) = temp(i,j,:) ! need to update to temp, since tflux is from tsfc
+                input_X(2:1+ksize) = temp(i,j,:)
                 input_X(2+ksize) = tsfc(i,j)
                 input_X(3+ksize:2+2*ksize) = rh2o(i,j,:)
                 input_X(3+2*ksize:2+3*ksize) = Rad_gases%qo3(i,j,:)
