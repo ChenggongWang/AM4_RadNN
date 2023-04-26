@@ -7,6 +7,9 @@ module radiation_driver_nn_mod
 use fms_mod,               only: FATAL, NOTE, error_mesg, stdout
 use fms2_io_mod,           only: FmsNetcdfFile_t, read_data,&
                                  open_file, close_file
+use constants_mod,         only: constants_init, RDGAS, RVGAS,   &
+                                 STEFAN, GRAV, CP_AIR
+
 use diag_manager_mod,      only: register_diag_field, send_data, &
                                  diag_manager_init
 use time_manager_mod,      only: time_manager_init, time_type, operator(>)
@@ -54,6 +57,7 @@ end type NN_FC_type
 ! cgw: for NN_para
 type(NN_FC_type), dimension(4):: Rad_NN_FC
 
+private energy_check
 ! public subroutines used by radiation_driver.F90
 public  radiation_driver_nn_init, &
         NN_radiation_calc, &
@@ -93,7 +97,7 @@ subroutine radiation_driver_nn_init(do_rad_nn, axes, time, rad_nn_para_nc)
         rad_nn_para_nc_4filepath(2) = "INPUT/"//trim(rad_nn_para_nc)//"lw_all.nc"
         rad_nn_para_nc_4filepath(3) = "INPUT/"//trim(rad_nn_para_nc)//"sw_clr.nc"
         rad_nn_para_nc_4filepath(4) = "INPUT/"//trim(rad_nn_para_nc)//"sw_all.nc"
-        
+        call constants_init 
         ! read para file  
         do inn = 1, 4
             if (open_file(Rad_NN_para_fileobj, rad_nn_para_nc_4filepath(inn), "read" )) then
@@ -383,6 +387,70 @@ subroutine nn_pred_1d_matmul(FNN,x,y)
     y = interm1
     deallocate(interm1)
 end subroutine nn_pred_1d_matmul
+subroutine energy_check(phalf,                  &
+                        tdt_sw, tdt_lw,         &
+                        lwdn_sfc, lwup_sfc,     &
+                        swdn_sfc, swup_sfc,     &
+                        swdn_toa, swup_toa, olr,& 
+                        tdt_sw_clr, tdt_lw_clr, &
+                        lwdn_sfc_clr, swdn_sfc_clr, swup_sfc_clr, &
+                        swup_toa_clr, olr_clr &
+                        ) 
+
+
+    !--------------------------------------------------------------------
+    real, dimension(:,:,:),  intent(in)      :: phalf,                   &
+                                                tdt_sw, tdt_lw,          &
+                                                tdt_sw_clr, tdt_lw_clr
+    real, dimension(:,:),    intent(inout)   :: lwdn_sfc, lwup_sfc,      &
+                                                swdn_sfc, swup_sfc,      &
+                                                swdn_toa, swup_toa, olr, & 
+                                                lwdn_sfc_clr, swdn_sfc_clr, swup_sfc_clr, &
+                                                swup_toa_clr, olr_clr
+    !---------------------------------------------------------------------
+    ! local variables
+    real(kind=4), allocatable, dimension(:,:,:)      :: eng_err_mask_4, dP
+    !real(kind=4), allocatable, dimension(:,:)        :: eng_err_mask
+    integer :: i, j, isize, jsize, ksize
+    
+    isize = size(phalf,1)
+    jsize = size(phalf,2)
+    ksize = size(phalf,3)
+
+    allocate(eng_err_mask_4(isize,jsize,4))
+    allocate(dP(isize,jsize,ksize-1))
+    dP = phalf(:,:,2:)-phalf(:,:,:33)
+    !lw_clr
+    eng_err_mask_4(:,:,1) = lwup_sfc - lwdn_sfc_clr - olr_clr 
+    eng_err_mask_4(:,:,1) = eng_err_mask_4(:,:,1)-CP_AIR/GRAV*SUM(dP*tdt_lw_clr,dim=3)
+    !lw
+    eng_err_mask_4(:,:,2) = lwup_sfc - lwdn_sfc - olr 
+    eng_err_mask_4(:,:,2) = eng_err_mask_4(:,:,2)-CP_AIR/GRAV*SUM(dP*tdt_lw,dim=3)
+    !sw_clr
+    eng_err_mask_4(:,:,3) = swdn_toa - swup_toa_clr + swup_sfc_clr - swdn_sfc_clr 
+    eng_err_mask_4(:,:,3) = eng_err_mask_4(:,:,3)-CP_AIR/GRAV*SUM(dP*tdt_sw_clr,dim=3)
+    !sw
+    eng_err_mask_4(:,:,4) = swdn_toa - swup_toa + swup_sfc - swdn_sfc 
+    eng_err_mask_4(:,:,4) = eng_err_mask_4(:,:,4)-CP_AIR/GRAV*SUM(dP*tdt_sw,dim=3)
+
+    ! debug: save lw engerr to swup_toa
+    !swup_toa_clr = eng_err_mask_4(:,:,1)
+    !swup_toa = eng_err_mask_4(:,:,2)
+    ! debug: save sw engerr to olr
+    !olr_clr = eng_err_mask_4(:,:,3)
+    !olr = eng_err_mask_4(:,:,4)
+    do j = 1, jsize
+        do i = 1, isize
+            ! use negative olr to mark NN failed grid
+            if (maxval(abs(eng_err_mask_4(i,j,:)))>1.0) then
+                olr(i,j) = -999.0
+            end if
+        end do
+    end do
+
+    deallocate(eng_err_mask_4)
+end subroutine energy_check
+
 !######################################################################
 ! cgw: subroutine to apply NN 
 !      only consider ozone and cloud, no aerosol and other GHGs for now
@@ -420,7 +488,8 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
     !---------------------------------------------------------------------
     ! local variables
     integer :: i, j, isize, jsize, ksize, outunit, inn, cstra, cconv
-    real(kind=4), allocatable, dimension(:) :: input_X, output_Y
+    real(kind=4), allocatable, dimension(:)     :: input_X, output_Y
+    
     isize = size(temp,1)
     jsize = size(temp,2)
     ksize = size(temp,3)
@@ -547,6 +616,16 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
         end do
     end do
     deallocate(input_X, output_Y)
+
+    call energy_check(  phalf,                  &
+                        tdt_sw, tdt_lw,         &
+                        lwdn_sfc, lwup_sfc,     &
+                        swdn_sfc, swup_sfc,     &
+                        swdn_toa, swup_toa, olr,& 
+                        tdt_sw_clr, tdt_lw_clr, &
+                        lwdn_sfc_clr, swdn_sfc_clr, swup_sfc_clr, &
+                        swup_toa_clr, olr_clr   &
+                        ) 
     
 end subroutine NN_radiation_calc
 

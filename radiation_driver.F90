@@ -347,8 +347,8 @@ logical :: apply_vapor_limits = .true. ! lower limit is applied to
 logical :: nonzero_rad_flux_init = .false.
 
 logical :: do_radiation = .true.
-logical :: do_rad_nn = .true.
-logical :: do_rad_nn_eff = .true.
+logical :: do_rad_nn = .false.
+logical :: do_rad_nn_eff = .false.
 logical :: nn_diag_flag = .false.
 logical :: nn_diag_speed = .false.
 character(len=100) :: rad_nn_para_nc = 'RadNN_AM4_para_default'
@@ -1896,7 +1896,8 @@ real, dimension(:,:),   allocatable :: nn_swup_sfc_clr
 real, dimension(:,:),   allocatable :: nn_swup_toa_clr
 real, dimension(:,:),   allocatable :: nn_olr_clr            
 real                    :: solar_constant_used         
-integer, dimension(3)   :: size3d
+integer, dimension(3)   :: size3D
+integer :: i, j
 
 !-------------------------------------------------------------------
 !    verify that this module has been initialized. if not, exit.
@@ -2327,10 +2328,20 @@ integer, dimension(3)   :: size3d
 !           vis, dir, dif is kept as standard solver value
 !           they can be included into NN later 
 !---------------------------------------------------------------------
-    if (do_rad_nn_eff) then
-        Rad_flux_block%tdt_rad = nn_tdt_sw + nn_tdt_lw
-        Rad_flux_block%flux_sw = nn_swdn_sfc - nn_swup_sfc
-        Rad_flux_block%flux_lw = nn_lwdn_sfc 
+    if (do_rad_nn_eff .and. do_rad .and. do_rad_nn) then
+        do j = 1, size3D(2)
+            do i = 1, size3D(1)
+                ! replace grid with small error
+                !if (maxval(abs(Rad_flux_block%tdt_rad(i,j,:) - nn_tdt_sw(i,j,:) - nn_tdt_lw(i,j,:))) > 1000.0) then
+                ! energy check
+                if (nn_olr(i,j)>0.0) then
+                    Rad_flux_block%tdt_rad(i,j,:) = nn_tdt_sw(i,j,:) + nn_tdt_lw(i,j,:)
+                    !Rad_flux_block%flux_sw = nn_swdn_sfc - nn_swup_sfc
+                    !Rad_flux_block%flux_lw = nn_lwdn_sfc 
+                end if
+                
+            end do
+        end do
     end if ! do_rad_nn_eff
 
     ! deallocate NN resluts
