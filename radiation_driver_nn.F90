@@ -442,8 +442,8 @@ subroutine energy_check(phalf,                  &
     do j = 1, jsize
         do i = 1, isize
             ! use negative olr to mark NN failed grid
-            if (maxval(abs(eng_err_mask_4(i,j,:)))>1.0) then
-                olr(i,j) = -999.0
+            if (maxval(abs(eng_err_mask_4(i,j,:)))>10.0) then
+                lwup_sfc(i,j) = -999.0
             end if
         end do
     end do
