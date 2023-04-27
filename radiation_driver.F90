@@ -2287,6 +2287,27 @@ integer :: i, j
         endif
       endif ! (Exch_ctrl%do_cosp)
 
+!---------------------------------------------------------------------
+!  cgw: 
+!  replace standard solver results with NN predictions
+!  stage 0: only tdt and sw lw net flux. 
+!           vis, dir, dif is kept as standard solver value
+!           they can be included into NN later 
+!---------------------------------------------------------------------
+    if (do_rad_nn_eff .and. do_rad .and. do_rad_nn) then
+        do j = 1, size3D(2)
+            do i = 1, size3D(1)
+                ! replace grid with small error
+                !if (maxval(abs(Rad_flux_block%tdt_rad(i,j,:) - nn_tdt_sw(i,j,:) - nn_tdt_lw(i,j,:))) > 1000.0) then
+                ! apply nn if it pass energy check
+                if (nn_lwup_sfc(i,j)>40.0) then
+                    Rad_output%tdt_rad(is+i-1,js+j-1,:) = nn_tdt_sw(i,j,:) + nn_tdt_lw(i,j,:)
+                    Rad_output%flux_sw_surf(is+i-1,js+j-1) = nn_swdn_sfc(i,j) - nn_swup_sfc(i,j)
+                    Rad_output%flux_lw_surf(is+i-1,js+j-1) = nn_lwdn_sfc(i,j) 
+                end if
+            end do
+        end do
+    end if ! do_rad_nn_eff
 !-------------------------------------------------------------------
 !    process the variables returned from radiation_driver_mod. the 
 !    radiative heating rate is added to the accumulated physics heating
@@ -2321,28 +2342,6 @@ integer :: i, j
       Rad_flux_block%flux_lw = Rad_output%flux_lw_surf(is:ie,js:je)
       Rad_flux_block%coszen  = Rad_output%coszen_angle(is:ie,js:je)
       if (do_rad) Rad_flux_block%extinction = Rad_output%extinction(is:ie,js:je,:)
-!---------------------------------------------------------------------
-!  cgw: 
-!  replace standard solver results with NN predictions
-!  stage 0: only tdt and sw lw net flux. 
-!           vis, dir, dif is kept as standard solver value
-!           they can be included into NN later 
-!---------------------------------------------------------------------
-    if (do_rad_nn_eff .and. do_rad .and. do_rad_nn) then
-        do j = 1, size3D(2)
-            do i = 1, size3D(1)
-                ! replace grid with small error
-                !if (maxval(abs(Rad_flux_block%tdt_rad(i,j,:) - nn_tdt_sw(i,j,:) - nn_tdt_lw(i,j,:))) > 1000.0) then
-                ! energy check
-                if (nn_olr(i,j)>0.0) then
-                    Rad_flux_block%tdt_rad(i,j,:) = nn_tdt_sw(i,j,:) + nn_tdt_lw(i,j,:)
-                    !Rad_flux_block%flux_sw = nn_swdn_sfc - nn_swup_sfc
-                    !Rad_flux_block%flux_lw = nn_lwdn_sfc 
-                end if
-                
-            end do
-        end do
-    end if ! do_rad_nn_eff
 
     ! deallocate NN resluts
     if (allocated(nn_tdt_sw      )) deallocate(nn_tdt_sw      )
