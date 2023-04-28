@@ -2321,27 +2321,27 @@ integer :: i, j
       Rad_flux_block%tdt_rad = Rad_output%tdt_rad(is:ie,js:je,:)
       Rad_flux_block%tdt_lw  = Rad_output%tdtlw(is:ie,js:je,:)
       Rad_flux_block%flux_sw = Rad_output%flux_sw_surf(is:ie,js:je)
-      if (treat_sfc_refl_dir_as_dif) then
-         Rad_flux_block%flux_sw_dir     = Rad_output%flux_sw_surf_dir(is:ie,js:je)
-         Rad_flux_block%flux_sw_dif     = Rad_output%flux_sw_surf_dif(is:ie,js:je)
-         Rad_flux_block%flux_sw_vis_dir = Rad_output%flux_sw_vis_dir (is:ie,js:je)
-         Rad_flux_block%flux_sw_vis_dif = Rad_output%flux_sw_vis_dif (is:ie,js:je)
-      else
-         Rad_flux_block%flux_sw_dir     = Rad_output%flux_sw_surf_dir(is:ie,js:je) - Rad_output%flux_sw_surf_refl_dir(is:ie,js:je)
-         Rad_flux_block%flux_sw_dif     = Rad_output%flux_sw_surf_dif(is:ie,js:je) + Rad_output%flux_sw_surf_refl_dir(is:ie,js:je)
-         Rad_flux_block%flux_sw_vis_dir = Rad_output%flux_sw_vis_dir (is:ie,js:je) - Rad_output%flux_sw_refl_vis_dir (is:ie,js:je)
-         Rad_flux_block%flux_sw_vis_dif = Rad_output%flux_sw_vis_dif (is:ie,js:je) + Rad_output%flux_sw_refl_vis_dir (is:ie,js:je)
-      endif
+      !if (treat_sfc_refl_dir_as_dif) then
+      !   Rad_flux_block%flux_sw_dir     = Rad_output%flux_sw_surf_dir(is:ie,js:je)
+      !   Rad_flux_block%flux_sw_dif     = Rad_output%flux_sw_surf_dif(is:ie,js:je)
+      !   Rad_flux_block%flux_sw_vis_dir = Rad_output%flux_sw_vis_dir (is:ie,js:je)
+      !   Rad_flux_block%flux_sw_vis_dif = Rad_output%flux_sw_vis_dif (is:ie,js:je)
+      !else
+      !   Rad_flux_block%flux_sw_dir     = Rad_output%flux_sw_surf_dir(is:ie,js:je) - Rad_output%flux_sw_surf_refl_dir(is:ie,js:je)
+      !   Rad_flux_block%flux_sw_dif     = Rad_output%flux_sw_surf_dif(is:ie,js:je) + Rad_output%flux_sw_surf_refl_dir(is:ie,js:je)
+      !   Rad_flux_block%flux_sw_vis_dir = Rad_output%flux_sw_vis_dir (is:ie,js:je) - Rad_output%flux_sw_refl_vis_dir (is:ie,js:je)
+      !   Rad_flux_block%flux_sw_vis_dif = Rad_output%flux_sw_vis_dif (is:ie,js:je) + Rad_output%flux_sw_refl_vis_dir (is:ie,js:je)
+      !endif
 
-      Rad_flux_block%flux_sw_down_vis_dir   = Rad_output%flux_sw_down_vis_dir(is:ie,js:je)
-      Rad_flux_block%flux_sw_down_vis_dif   = Rad_output%flux_sw_down_vis_dif(is:ie,js:je)
-      Rad_flux_block%flux_sw_down_total_dir = Rad_output%flux_sw_down_total_dir(is:ie,js:je)
-      Rad_flux_block%flux_sw_down_total_dif = Rad_output%flux_sw_down_total_dif(is:ie,js:je)
-      Rad_flux_block%flux_sw_vis            = Rad_output%flux_sw_vis (is:ie,js:je)
+      !Rad_flux_block%flux_sw_down_vis_dir   = Rad_output%flux_sw_down_vis_dir(is:ie,js:je)
+      !Rad_flux_block%flux_sw_down_vis_dif   = Rad_output%flux_sw_down_vis_dif(is:ie,js:je)
+      !Rad_flux_block%flux_sw_down_total_dir = Rad_output%flux_sw_down_total_dir(is:ie,js:je)
+      !Rad_flux_block%flux_sw_down_total_dif = Rad_output%flux_sw_down_total_dif(is:ie,js:je)
+      !Rad_flux_block%flux_sw_vis            = Rad_output%flux_sw_vis (is:ie,js:je)
 
       Rad_flux_block%flux_lw = Rad_output%flux_lw_surf(is:ie,js:je)
       Rad_flux_block%coszen  = Rad_output%coszen_angle(is:ie,js:je)
-      if (do_rad) Rad_flux_block%extinction = Rad_output%extinction(is:ie,js:je,:)
+      !if (do_rad) Rad_flux_block%extinction = Rad_output%extinction(is:ie,js:je,:)
 
     ! deallocate NN resluts
     if (allocated(nn_tdt_sw      )) deallocate(nn_tdt_sw      )
