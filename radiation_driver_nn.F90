@@ -27,7 +27,7 @@ private
 ! cgw: for NN_diag
 integer :: idtlev, idplay, idtlay, idh2o, ido3, idzlay, idsd, &
            idsf, idsl, idsi, idcd, idcf, idcl, idci, &
-           idph, idts, idzen, &
+           idph, idps, idts, idzen, &
            idvdir, idvdif, ididir, ididif, idfrac, idland, ider,idsolarfact, idsolar, &
            id_nn_tdt_lw, id_nn_tdt_sw, &
            id_nn_lwdn_sfc, id_nn_lwup_sfc, id_nn_swdn_sfc, id_nn_swup_sfc, &
@@ -194,8 +194,10 @@ subroutine radiation_driver_nn_init(do_rad_nn, axes, time, rad_nn_para_nc)
     idci = register_diag_field(mod_name, "shallow_ice_content", a(1:3), time, &
                                "shallow_ice_content", "")
     !2D fields (non-vertical)
-    idts = register_diag_field(mod_name, "ts", a(1:2), time, &
-                               "surface temperature", "K")
+    idps   = register_diag_field(mod_name, "ps", a(1:2), time, &
+                                 "surface pressure", "Pa")
+    idts   = register_diag_field(mod_name, "ts", a(1:2), time, &
+                                 "surface temperature", "K")
     idvdir = register_diag_field(mod_name, "visible_direct_albedo", a(1:2), time, &
                                  "visible_direct_albedo", "none")
     idvdif = register_diag_field(mod_name, "visible_diffuse_albedo", a(1:2), time, &
@@ -250,7 +252,7 @@ subroutine produce_rad_nn_diag(do_rad_nn, time_next, is, js, &
                                                        swup_toa_clr, olr_clr
     !---------------------------------------------------------------------
     ! local variables
-    integer :: n
+    integer :: n, ksize
     logical :: flag            
 
     if (do_rad_nn) then
@@ -305,7 +307,9 @@ subroutine produce_rad_nn_diag(do_rad_nn, time_next, is, js, &
     if (idci .gt. 0) flag = send_data(idci, moist_clouds_block%cloud_data(n)%ice_amt, &
                                       time_next, is, js, 1)
 
+    ksize = size(phalf,3)
     !2D atmosphere fields.
+    if (idps   .gt. 0) flag = send_data(idps,   phalf(:,:,ksize),        time_next, is, js)
     if (idts   .gt. 0) flag = send_data(idts,   tsfc,         time_next, is, js)
     if (idvdir .gt. 0) flag = send_data(idvdir, asfc_vis_dir, time_next, is, js)
     if (idvdif .gt. 0) flag = send_data(idvdif, asfc_vis_dif, time_next, is, js)
@@ -419,7 +423,7 @@ subroutine energy_check(phalf,                  &
 
     allocate(eng_err_mask_4(isize,jsize,4))
     allocate(dP(isize,jsize,ksize-1))
-    dP = phalf(:,:,2:)-phalf(:,:,:33)
+    dP = phalf(:,:,2:)-phalf(:,:,:ksize-1)
     !lw_clr
     eng_err_mask_4(:,:,1) = lwup_sfc - lwdn_sfc_clr - olr_clr 
     eng_err_mask_4(:,:,1) = eng_err_mask_4(:,:,1)-CP_AIR/GRAV*SUM(dP*tdt_lw_clr,dim=3)
@@ -441,9 +445,11 @@ subroutine energy_check(phalf,                  &
     !olr = eng_err_mask_4(:,:,4)
     do j = 1, jsize
         do i = 1, isize
-            ! use negative olr to mark NN failed grid
+            ! use negative rlus to mark NN failed grid
             if (maxval(abs(eng_err_mask_4(i,j,:)))>10.0) then
                 lwup_sfc(i,j) = -999.0
+            else
+                lwup_sfc(i,j) = 999.0
             end if
         end do
     end do
@@ -503,6 +509,8 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
     allocate(output_y(size(Rad_NN_FC(inn)%layers(Rad_NN_FC(inn)%num_layers)%bias)))
     do j = 1, jsize
         do i = 1, isize
+            lwup_sfc(i,j) = STEFAN*tsfc(i,j)**4 ! same as the std. solver
+
             input_X(1) = phalf(i,j,ksize+1)   ! ps
             input_X(2:1+ksize) = temp(i,j,:) 
             input_X(2+ksize)   = tsfc(i,j)
@@ -510,9 +518,8 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
             input_X(3+2*ksize:2+3*ksize) = Rad_gases%qo3(i,j,:)
             call NN_pred_1d_sgemm (Rad_NN_FC(inn), input_X, output_Y)
             lwdn_sfc_clr(i,j) = output_Y(1) 
-            lwup_sfc(i,j)     = output_Y(2) 
-            olr_clr(i,j)      = output_Y(3) 
-            tdt_lw_clr(i,j,:) = output_Y(4:) 
+            olr_clr(i,j)      = output_Y(2) 
+            tdt_lw_clr(i,j,:) = output_Y(3:) 
         end do
     end do
     deallocate(input_X, output_Y)
@@ -537,9 +544,8 @@ subroutine NN_radiation_calc (phalf, temp, tflux,  tsfc, rh2o, Rad_gases, Astro,
             input_X(3+10*ksize:2+11*ksize) = Moist_clouds_block%cloud_data(cconv)%ice_amt(i,j,:)
             call NN_pred_1d_sgemm (Rad_NN_FC(inn), input_X, output_Y)
             lwdn_sfc(i,j) = output_Y(1) 
-            lwup_sfc(i,j) = output_Y(2) 
-            olr(i,j)      = output_Y(3) 
-            tdt_lw(i,j,:) = output_Y(4:) 
+            olr(i,j)      = output_Y(2) 
+            tdt_lw(i,j,:) = output_Y(3:) 
         end do
     end do
     deallocate(input_X, output_Y)
