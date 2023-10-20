@@ -349,8 +349,7 @@ logical :: nonzero_rad_flux_init = .false.
 logical :: do_radiation = .true.
 logical :: do_rad_nn = .false.
 logical :: do_rad_nn_eff = .false.
-logical :: nn_diag_flag = .false.
-logical :: nn_diag_speed = .false.
+logical :: do_rad_hybrid = .false.
 character(len=100) :: rad_nn_para_nc = 'RadNN_AM4_para_default'
 
 logical :: do_conserve_energy = .false.
@@ -481,8 +480,7 @@ namelist /radiation_driver_nml/ do_radiation, &
                                 do_conserve_energy, & 
                                 do_rad_nn, &
                                 do_rad_nn_eff, &
-                                nn_diag_flag, &
-                                nn_diag_speed, &
+                                do_rad_hybrid, &
                                 rad_nn_para_nc
 !---------------------------------------------------------------------
 !---- public data ----
@@ -2297,14 +2295,13 @@ integer :: i, j
     if (do_rad_nn_eff .and. do_rad .and. do_rad_nn) then
         do j = 1, size3D(2)
             do i = 1, size3D(1)
-                ! replace grid with small error
-                !if (maxval(abs(Rad_flux_block%tdt_rad(i,j,:) - nn_tdt_sw(i,j,:) - nn_tdt_lw(i,j,:))) > 1000.0) then
-                ! apply nn if it pass energy check
-                if (nn_lwup_sfc(i,j)>40.0) then
-                    Rad_output%tdt_rad(is+i-1,js+j-1,:) = nn_tdt_sw(i,j,:) + nn_tdt_lw(i,j,:)
-                    Rad_output%flux_sw_surf(is+i-1,js+j-1) = nn_swdn_sfc(i,j) - nn_swup_sfc(i,j)
-                    Rad_output%flux_lw_surf(is+i-1,js+j-1) = nn_lwdn_sfc(i,j) 
+                if (do_rad_hybrid) then !if in hybrid mode, check eng_conservation
+                    if (nn_lwup_sfc(i,j)<0.0) CYCLE ! if eng_check failed, skip this column
                 end if
+                !replace rad_am4 with nn, if rad nn is activated and: not in hybrid mode, eng_check passed
+                Rad_output%tdt_rad(is+i-1,js+j-1,:) = nn_tdt_sw(i,j,:) + nn_tdt_lw(i,j,:)
+                Rad_output%flux_sw_surf(is+i-1,js+j-1) = nn_swdn_sfc(i,j) - nn_swup_sfc(i,j)
+                Rad_output%flux_lw_surf(is+i-1,js+j-1) = nn_lwdn_sfc(i,j) 
             end do
         end do
     end if ! do_rad_nn_eff
